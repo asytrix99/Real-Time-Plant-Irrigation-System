@@ -1,6 +1,8 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <Arduino_JSON.h>
+#include <WiFiClientSecure.h>
+#include <time.h>
 
 const char* ssid = "Xiaomi 13 Pro"; 
 const char* password = "1234567890"; 
@@ -11,10 +13,14 @@ unsigned long lastTime = 0;
 unsigned long timerDelay = 10000; // Api call delay : 10 seconds
 const int NEW_TX_PIN = 1;
 const int NEW_RX_PIN = 2;
+String botToken = "7698137105:AAEttnPiSC-jwm-TEy5URZkxQg0FrFB6JqI";
+String chatId = "7404385637";
+const char* ntp = "pool.ntp.org";
+const long offset = 8 * 3600; // 8h * 3600seconds
 
 void setup() {
   Serial.begin(115200); // Serial monitor
-  Serial1.begin(115200, SERIAL_8N1, NEW_RX_PIN, NEW_TX_PIN); // UART
+  Serial1.begin(9600, SERIAL_8N1, NEW_RX_PIN, NEW_TX_PIN); // UART
   Serial.print("Connecting to SSID: ");
   Serial.println(ssid);
   WiFi.begin(ssid, password);
@@ -25,16 +31,20 @@ void setup() {
   }
   
   Serial.println("\nConnected to WiFi!");
+
+  configTime(offset, 0, ntp);
+  Serial.println("Time configured via NTP.");
+  //sendTelegramMessage("⚠️ ALERT: Water tank is critically low! Please refill.");
 }
 
 void loop() {
   if ((millis() - lastTime) > timerDelay) {
-    if(WiFi.status() == WL_CONNECTED){
+    if (WiFi.status() == WL_CONNECTED){
       String serverPath = "http://api.openweathermap.org/data/2.5/weather?q=" + city + "," + countryCode + "&APPID=" + openWeatherMapApiKey;
       String jsonBuffer = httpGETRequest(serverPath.c_str());
       
       JSONVar myObject = JSON.parse(jsonBuffer);
-      if (JSON.typeof(myObject) == "undefined") {
+      if(JSON.typeof(myObject) == "undefined") {
         Serial.println("Parsing input failed!");
         return;
       }
@@ -51,7 +61,7 @@ void loop() {
         packetToSend = "<W,C>"; // Cloudy
       }
       
-      Serial1.print(packetToSend); 
+      Serial1.println(packetToSend); 
       Serial.print("Raw Weather Condition: ");
       Serial.println(weatherCondition);
       Serial.print("Sent to MCXC444: "); 
@@ -61,6 +71,28 @@ void loop() {
       Serial.println("WiFi Disconnected");
     }
     lastTime = millis();
+  }
+
+  if (Serial1.available()) {
+    String incomingData = Serial1.readStringUntil('\n');
+    Serial.print("Received from MCXC444: ");
+    Serial.println(incomingData);
+
+    if (incomingData.indexOf("<A,LOW>") >= 0) {
+      sendTelegramMessage("ALERT: Water tank is critically low! Please refill.");
+    }
+    else if (incomingData.indexOf("<A,D>") >= 0) {
+      struct tm timeinfo;
+      if (!getLocalTime(&timeinfo)) {
+        Serial.println("Failed to obtain time");
+        sendTelegramMessage("Watering! (Failed to obtain time)");
+      } else {
+        char timeStr[50];
+        strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M:%S", &timeinfo);
+        String msg = "Watering!\n time: " + String(timeStr);
+        sendTelegramMessage(msg);
+      }
+    }
   }
 }
 
@@ -80,4 +112,25 @@ String httpGETRequest(const char* serverName) {
   }
   http.end();
   return payload;
+}
+
+void sendTelegramMessage(String message) {
+  if(WiFi.status() == WL_CONNECTED){
+    WiFiClientSecure secureClient;
+    secureClient.setInsecure();
+    HTTPClient http;
+    
+    String url = "https://api.telegram.org/bot" + botToken + "/sendMessage?chat_id=" + chatId + "&text=" + message;
+    
+    http.begin(secureClient, url);
+    int httpResponseCode = http.GET();
+    
+    if (httpResponseCode > 0) {
+      Serial.println("Telegram Alert Sent Successfully!");
+    } else {
+      Serial.print("Telegram Error Code: ");
+      Serial.println(httpResponseCode);
+    }
+    http.end();
+  }
 }
