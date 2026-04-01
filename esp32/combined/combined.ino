@@ -69,7 +69,7 @@ void loop() {
       // Packetize data
       String packetToSend = createMessageString();
       
-      printTransmittedMessage();
+      printTransmittedMessage(packetToSend);
     } else {
       Serial.println("WiFi Disconnected");
     }
@@ -104,7 +104,7 @@ String createMessageString() {
   return packetToSend;
 }
 
-void printTransmittedMessage() {
+void printTransmittedMessage(String packetToSend) {
   Serial1.println(packetToSend); 
   Serial.print("Raw Weather Condition: ");
   Serial.println(weatherCondition);
