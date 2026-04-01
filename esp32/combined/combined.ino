@@ -5,28 +5,42 @@
 #include <time.h>
 #include <ESP32Servo.h>
 
+
+// Wifi connection and password
 const char* ssid = "Xiaomi 13 Pro"; 
 const char* password = "1234567890";
+
+// API variables
 String openWeatherMapApiKey = "11d9fd741957988badffa1134a497315"; 
 String city = "Singapore";
 String countryCode = "SG";
 String weatherCondition;
+
+// Variables for controlling API fetch frequency
 unsigned long lastTime = 0;
 unsigned long timerDelay = 10000; // Api call delay : 10 seconds
-const int NEW_TX_PIN = 1;
-const int NEW_RX_PIN = 2;
+
+// Telegram bot variables
 String botToken = "7698137105:AAEttnPiSC-jwm-TEy5URZkxQg0FrFB6JqI";
 String chatId = "7404385637";
 const char* ntp = "pool.ntp.org";
 const long offset = 8 * 3600; // 8h * 3600seconds
-Servo valve;
+
+// Pin declarations
+const int NEW_TX_PIN = 1;
+const int NEW_RX_PIN = 2;
 int WATER_PIN = 3;
 int LDR_PIN = 4;
 int SERVO_PIN = 5;
+
+// Global variables for sensor values
 int rawWater;
 int rawLight;
 unsigned char waterLevel;
 unsigned char lightLevel;
+
+// Servo variables
+Servo valve;
 static int angle_closed = 0;
 static int angle_open = 90;
 
@@ -36,7 +50,7 @@ void setup() {
   Serial.print("Connecting to SSID: ");
   Serial.println(ssid);
   WiFi.begin(ssid, password);
-  valve.attach(SERVO_PIN, 500, 2400);
+  valve.attach(SERVO_PIN, 500, 2400); // Grants 180 degrees of rotation
   valve.write(0);
   
   while(WiFi.status() != WL_CONNECTED) {
