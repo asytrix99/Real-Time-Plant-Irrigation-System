@@ -34,11 +34,11 @@ void loop() {
   waterLevel = (int)(((float)rawWater / 8191.0) * 255.0);
   lightLevel = (int)(((float)rawLight / 8191.0) * 255.0);
 
-  // Prints values
-  Serial.print("Raw reading: ");
-  Serial.print(waterLevel);
-  Serial.print(", ");
-  Serial.println(rawLight);
+  // Prints values for troubleshooting
+  // Serial.print("Raw reading: ");
+  // Serial.print(waterLevel);
+  // Serial.print(", ");
+  // Serial.println(lightLevel);
 
   if (angle == 0) {
     angle = 90;
