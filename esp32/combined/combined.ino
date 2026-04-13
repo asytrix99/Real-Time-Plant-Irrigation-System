@@ -40,6 +40,8 @@ int rawWater;
 int rawLight;
 unsigned char waterLevel;
 unsigned char lightLevel;
+unsigned long servoOpenTime = 0;
+bool isValveOpen = false;
 
 // Servo variables
 Servo valve;
@@ -111,6 +113,11 @@ void loop()
 
     processMessage(incomingData);
   }
+
+  if (isValveOpen && (millis() - servoOpenTime >= 500)) {
+    closeValve();
+    isValveOpen = false;
+  }
 }
 
 String fetchAPIData()
@@ -150,7 +157,7 @@ void printTransmittedMessage(String packetToSend)
 }
 
 unsigned long lastWaterTime = 0;
-unsigned long waterCooldown = 10000; // 10s cooldown for open valve
+unsigned long waterCooldown = 30000; // 10s cooldown for open valve
 
 void processMessage(String incomingData)
 {
@@ -172,9 +179,9 @@ void processMessage(String incomingData)
     {
       lastWaterTime = millis();
       openValve();
-      delay(500);
-      closeValve();
-
+      isValveOpen = true;
+      servoOpenTime = millis();
+      
       struct tm timeinfo;
       if (!getLocalTime(&timeinfo))
       {
@@ -198,8 +205,8 @@ void processMessage(String incomingData)
   {
     Serial.println("Manual Override Received! Watering...");
     openValve();
-    delay(500);
-    closeValve();
+    isValveOpen = true;
+    servoOpenTime = millis();
     sendTelegramMessage("Manual Watering Triggered!");
   }
 }

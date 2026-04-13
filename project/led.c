@@ -116,7 +116,7 @@ void ledControlTask(void *pvParams)
             }
         }
 
-        // if blinking, toggle every 500ms using the timeout pdMS_TO_TICKS above
+        // if blinking, toggle every 100ms using the timeout pdMS_TO_TICKS above
         // runs regardless whether ledQueue is received
         if (isBlinking)
         {

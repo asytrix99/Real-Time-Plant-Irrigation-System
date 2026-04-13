@@ -103,7 +103,9 @@ void UART2_FLEXIO_IRQHandler(void)
         //    	PRINTF("Ready to receive data over on UART\r\n");
         TMessage msg;
         rx_data = UART2->D;
-        recv_buffer[recv_ptr++] = rx_data;
+        if (recv_ptr < MAX_MSG_LEN - 1) {
+            recv_buffer[recv_ptr++] = rx_data;
+        }
         // one completed copying data into recv_buffer
         if (rx_data == '\n')
         {
@@ -126,6 +128,7 @@ void UART2_FLEXIO_IRQHandler(void)
 void uartTxTask(void *pvParams)
 {
     int moisture;
+    DRY_TH = 3800;
 
     while (1)
     {
@@ -150,8 +153,6 @@ void uartTxTask(void *pvParams)
             xSemaphoreGive(uartMutex);
             // end of CS
             PRINTF("uartMutex released by uartTxTask\r\n");
-
-            DRY_TH = 3800;
 
             // wake alertTask if critically dry
             if (moisture > DRY_TH)
