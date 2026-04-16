@@ -4,17 +4,17 @@
 #include <WiFiClientSecure.h>
 #include <time.h>
 
-const char* ssid = "Xiaomi 13 Pro"; 
-const char* password = "1234567890"; 
-String openWeatherMapApiKey = "11d9fd741957988badffa1134a497315"; 
+const char* ssid = "wifi"; 
+const char* password = "password"; 
+String openWeatherMapApiKey = "weather api"; 
 String city = "Singapore";
 String countryCode = "SG";
 unsigned long lastTime = 0;
 unsigned long timerDelay = 10000; // Api call delay : 10 seconds
 const int NEW_TX_PIN = 1;
 const int NEW_RX_PIN = 2;
-String botToken = "7698137105:AAEttnPiSC-jwm-TEy5URZkxQg0FrFB6JqI";
-String chatId = "7404385637";
+String botToken = "telebot token";
+String chatId = "ID";
 const char* ntp = "pool.ntp.org";
 const long offset = 8 * 3600; // 8h * 3600seconds
 
