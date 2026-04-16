@@ -12,7 +12,7 @@ typedef struct tm
 
 // Before this, tasks are added to uartQueue or ledQueue...
 
-// Task 1: Higher Priority (2). Parses UART data and sends command to LED queue.
+// Higher-priority parser task: translates UART text messages into LED commands.
 static void uartReceiveTask(void *p)
 {
     TMessage msg;
@@ -35,7 +35,7 @@ static void uartReceiveTask(void *p)
     }
 }
 
-// Task 2: Lower Priority (1). Controls the actuator based on command.
+// Lower-priority actuator task: applies LED action from parsed commands.
 static void ledControlTask(void *p)
 {
     uint8_t cmd;

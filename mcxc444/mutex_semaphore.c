@@ -5,7 +5,7 @@ SemaphoreHandle_t sema;
 sema = xSemaphoreCreateBinary();
 // Creating task (main)
 // xTaskCreate(taskfun, taskname, stacksize, paramter, priority, handle);
-// higher # = higher priority
+// Higher # = higher priority
 xTaskCreate(task1, "Task1", configMINIMAL_STACK_SIZE + 100, NULL, 1, NULL);
 // Start the scheduler (main)
 vTaskStartScheduler();
@@ -13,8 +13,7 @@ vTaskStartScheduler();
 /*Functions*/
 // Release CPU
 vTaskDelay(pdMS_TO_TICKS(500));
-// Example 1:
-// Prints Hello every 500 ms
+// Example periodic task used to demonstrate cooperative delays.
 static void helloTask(void *p)
 {
     while (1)
@@ -28,7 +27,7 @@ static void helloTask(void *p)
 BaseType_t hpw = pdFALSE;
 xSemaphoreGiveFromISR(sema, &hpw);
 portYIELD_FROM_ISR(hpw);
-// Example 1: button press -> ISR -> give sema -> task wakes up -> toggle LED
+// ISR demo: periodically gives semaphore to wake a blocked task.
 void PORTA_IRQHandler()
 {
     static int count = 0;
@@ -41,9 +40,9 @@ void PORTA_IRQHandler()
     {
         if ((count % 5) == 0)
         {
-            // increments semaphore by 1
+            // Increments semaphore by 1
             xSemaphoreGiveFromISR(sema, &hpw);
-            // release CPU voluntarily
+            // Release CPU voluntarily
             portYIELD_FROM_ISR(hpw);
         }
     }
@@ -55,9 +54,7 @@ if (xSemaphoreTake(sema, portMAX_DELAY))
 {
     toggleLED(RED);
 }
-// Example 1:
-// Task blocks (sleeps) until ISR gives semaphore
-// Zero CPU usage while waiting
+// Semaphore-driven task: blocks until ISR posts an event.
 static void blinkLEDTask(void *p)
 {
     PRINTF("BlinkLED Task Started\r\n");

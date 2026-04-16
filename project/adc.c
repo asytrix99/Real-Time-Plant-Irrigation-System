@@ -7,23 +7,23 @@
 
 #include "adc.h"
 
-// Configure the MCG Internal Reference Clock
+// Configure MCG internal reference clock used by ADC timing.
 void setMCGIRClk()
 {
-    // clear CLKS
+    // Clear CLKS
     MCG->C1 &= ~MCG_C1_CLKS_MASK;
-    // set IRCLKEN to enable LIRC
+    // Set IRCLKEN to enable LIRC
     MCG->C1 |= (MCG_C1_CLKS(0b01)) | (MCG_C1_IRCLKEN_MASK);
-    // choose the 2MHz Clock
+    // Choose the 2MHz Clock
     MCG->C2 |= MCG_C2_IRCS_MASK;
-    // set FRCDIV and LIRC_DIV2
+    // Set FRCDIV and LIRC_DIV2
     MCG->SC &= ~MCG_SC_FCRDIV_MASK;
     MCG->SC |= MCG_SC_FCRDIV(0b0);
     MCG->MC &= ~MCG_MC_LIRC_DIV2_MASK;
     MCG->MC |= MCG_MC_LIRC_DIV2(0b1);
 }
 
-// ADC for the soil moisture sensor readings
+// Initialize ADC0 for soil moisture sampling on ADC_SE0.
 void ADC_Init()
 {
     NVIC_DisableIRQ(ADC0_IRQn);
@@ -53,10 +53,6 @@ void ADC_Init()
     // Set 12-bit resolution
     ADC0->CFG1 &= ~ADC_CFG1_MODE_MASK;
     ADC0->CFG1 |= ADC_CFG1_MODE(0b01);
-
-    // Select divide ratio used by ADC to generate internal clock ADCK
-    //  DC0->CFG1 &= ~ADC_CFG1_ADIV_MASK;
-    //  ADC0->CFG1 |= ADC_CFG1_ADIV(0b01);
 
     // Set to 1 for long sample time -> spend more time more accurate conversion
     ADC0->CFG1 &= ~ADC_CFG1_ADLSMP_MASK;
@@ -90,14 +86,15 @@ void ADC_Init()
     NVIC_EnableIRQ(ADC0_IRQn);
 }
 
+// Trigger one conversion on the selected ADC channel.
 void ADC_Start(int channel)
 {
-    // mask and start the channel
+    // Mask and start the channel
     ADC0->SC1[0] &= ~ADC_SC1_ADCH_MASK;
     ADC0->SC1[0] |= ADC_SC1_ADCH(channel);
 }
 
-// ISR - saves result, posts to queue
+// ADC ISR: capture conversion result and publish it to the sensor queue.
 void ADC0_IRQHandler()
 {
     // Clear pending IRQ

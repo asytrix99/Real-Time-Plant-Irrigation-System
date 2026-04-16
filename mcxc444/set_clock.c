@@ -1,4 +1,4 @@
-// 2MHz LIRC -> no division DIV1 -> divide by 2
+// Set MCG internal reference clock path to 1 MHz for peripheral timing.
 void CLOCK_SetMCGIRCLK_1MHz()
 {
 

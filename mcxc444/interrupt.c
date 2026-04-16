@@ -1,4 +1,4 @@
-// Initialize interrupt to trigger on pin PTA4(SW3).
+// Configure GPIO edge interrupt on PTA4 (SW3).
 
 void initInterrupt()
 {
@@ -26,7 +26,7 @@ void initInterrupt()
     PORTA->PCR[SWITCH_PIN] |= PORT_PCR_IRQC(0b1010);
 
     // Set NVIC priority to 192,
-    // lowest priority
+    // Lowest priority
     NVIC_SetPriority(PORTA_IRQn, 192);
 
     // Clear pending interrupts and enable interrupts
@@ -34,6 +34,7 @@ void initInterrupt()
     NVIC_EnableIRQ(PORTA_IRQn);
 }
 
+// Button ISR: cycle mode state and clear interrupt status flag.
 void PORTA_IRQHandler()
 {
 

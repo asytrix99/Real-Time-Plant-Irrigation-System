@@ -1,3 +1,4 @@
+// Initialize switch input and RGB LED output pins.
 void GPIO_Init()
 {
     // Enable clock gating for ports A, D, E
@@ -18,7 +19,7 @@ void GPIO_Init()
     GPIOE->PDDR |= (1 << RED_PIN) | (1 << BLUE_PIN);
 }
 
-// drive LOW → ON
+// Active-low LED ON helper.
 void LED_On(int led)
 {
     switch (led)
@@ -35,7 +36,7 @@ void LED_On(int led)
     }
 }
 
-// drive HIGH → OFF
+// Active-low LED OFF helper.
 void LED_Off(int led)
 {
     switch (led)

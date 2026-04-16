@@ -1,3 +1,4 @@
+// Configure TPM0 channels for RGB LED PWM output.
 void PWM_Init()
 {
     // Enable clocks
@@ -28,7 +29,7 @@ void PWM_Init()
     TPM0->CONTROLS[2].CnSC = TPM_CnSC_MSB_MASK | TPM_CnSC_ELSA_MASK;
 }
 
-// Higher duty % -> LED brighter but inverted (active-low)
+// Update selected PWM channel duty cycle from percentage value.
 void PWM_SetDuty()
 {
 

@@ -7,7 +7,7 @@
 
 #include "led.h"
 
-// To blink the LED
+// Initialize RGB LED GPIO pins.
 void GPIO_Init()
 {
     // Enable clock gating for ports A, D, E
@@ -24,7 +24,7 @@ void GPIO_Init()
     GPIOE->PDDR |= (1 << RED_PIN) | (1 << BLUE_PIN);
 }
 
-// drive LOW → ON
+// Drive LOW → ON
 void LED_On(int pin)
 {
     switch (pin)
@@ -41,7 +41,7 @@ void LED_On(int pin)
     }
 }
 
-// drive HIGH → OFF
+// Drive HIGH → OFF
 void LED_Off(int pin)
 {
     switch (pin)
@@ -58,8 +58,7 @@ void LED_Off(int pin)
     }
 }
 
-// using FSM to control LED task
-// allows blinking to happen on TOP of original LED colour
+// LED control task: applies steady color state and optional blink overlay.
 void ledControlTask(void *pvParams)
 {
     PRINTF("Priority 2 ledControlTask starts\r\n");
@@ -70,7 +69,7 @@ void ledControlTask(void *pvParams)
 
     while (1)
     {
-        // non-blocking receive, check for new commands without waiting
+        // Non-blocking receive, check for new commands without waiting
         if (xQueueReceive(ledQueue, &cmd, pdMS_TO_TICKS(100)) == pdTRUE)
         {
             PRINTF("Received LEDQUEUE, proceeding to contorl LED...\r\n");
@@ -116,8 +115,8 @@ void ledControlTask(void *pvParams)
             }
         }
 
-        // if blinking, toggle every 100ms using the timeout pdMS_TO_TICKS above
-        // runs regardless whether ledQueue is received
+        // If blinking, toggle every 100ms using the timeout pdMS_TO_TICKS above
+        // Runs regardless whether ledQueue is received
         if (isBlinking)
         {
             if (blinkState == 0)
@@ -129,7 +128,7 @@ void ledControlTask(void *pvParams)
             }
             else
             {
-                // restore water colour
+                // Restore water colour
                 switch (currentWaterCmd)
                 {
                 case LED_RED:
@@ -158,7 +157,7 @@ void ledControlTask(void *pvParams)
         }
         else
         {
-            // not blinking — just hold steady colour
+            // Not blinking — just hold steady colour
             switch (currentWaterCmd)
             {
             case LED_RED:

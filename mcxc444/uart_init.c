@@ -1,36 +1,36 @@
-// defining baud rate, tx, rx, uart pins, uart priority
+// Defining baud rate, tx, rx, uart pins, uart priority
 #define BAUD_RATE 9600
 #define UART_TX_PTE22 22
 #define UART_RX_PTE23 23
 #define UART2_INT_PRIO 128
 
-// define buffer length
+// Define buffer length
 #define MAX_MSG_LEN 256
 char send_buffer[MAX_MSG_LEN];
 
-// define TMessage object
+// Define TMessage object
 typedef struct tm
 {
     char message[MAX_MSG_LEN];
 } TMessage;
 
-// define number of TMessage objects in a queue
+// Define number of TMessage objects in a queue
 #define QLEN 5
 QueueHandle_t queue;
 
-// --- UART Hardware & ISR ---
+// Configure UART2 peripheral, pins, baud rate, and RX interrupt.
 void initUART2(uint32_t baud_rate)
 {
     NVIC_DisableIRQ(UART2_FLEXIO_IRQn);
 
-    // enable clock to UART2 and PORTE
+    // Enable clock to UART2 and PORTE
     SIM->SCGC4 |= SIM_SCGC4_UART2_MASK;
     SIM->SCGC5 |= SIM_SCGC5_PORTE_MASK;
 
     // Ensure Tx and Rx are disabled before configuration
     UART2->C2 &= ~((UART_C2_TE_MASK) | (UART_C2_RE_MASK));
 
-    // connect UART pins for PTE22, PTE23
+    // Connect UART pins for PTE22, PTE23
     PORTE->PCR[UART_TX_PTE22] &= ~PORT_PCR_MUX_MASK;
     PORTE->PCR[UART_TX_PTE22] |= PORT_PCR_MUX(4);
 

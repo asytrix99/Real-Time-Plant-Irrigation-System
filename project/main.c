@@ -12,13 +12,13 @@
 char send_buffer[MAX_MSG_LEN];
 
 QueueHandle_t queue;
-QueueHandle_t sensorQueue;        // moisture readings → UART TX
-QueueHandle_t ledQueue;           // LED commands
-SemaphoreHandle_t uartMutex;      // protect shared variable send_buffer (accessed by uartTxTask + alertTask)
-SemaphoreHandle_t alertSemaphore; // binary semaphore for signaling between uartTxTask + alertTask
-SemaphoreHandle_t buttonSemaphore; //Semaphore for Button Interrupt
+QueueHandle_t sensorQueue;         // Moisture readings -> UART TX
+QueueHandle_t ledQueue;            // LED command
+SemaphoreHandle_t uartMutex;       // Protect shared variable send_buffer (accessed by uartTxTask + alertTask)
+SemaphoreHandle_t alertSemaphore;  // Binary semaphore for signaling between uartTxTask + alertTask
+SemaphoreHandle_t buttonSemaphore; // Semaphore for Button Interrupt
 
-// Button Hardware & ISR Functions
+// Configure button GPIO and interrupt routing for manual watering override.
 void Button_Init(void)
 {
     SIM->SCGC5 |= SIM_SCGC5_PORTA_MASK;
@@ -33,6 +33,7 @@ void Button_Init(void)
     NVIC_EnableIRQ(PORTA_IRQn);
 }
 
+// Button ISR: clear the edge flag and wake the manual water task.
 void PORTA_IRQHandler(void)
 {
     PORTA->ISFR |= (1 << BUTTON_PIN);
@@ -57,9 +58,7 @@ int main(void)
     GPIO_Init();
     PRINTF("GPIO initialized\r\n");
 
-
-
-    // creating queues and semaphores
+    // Create all RTOS sync primitives before tasks start running.
     queue = xQueueCreate(QLEN, sizeof(TMessage));
     sensorQueue = xQueueCreate(QLEN, sizeof(int)); // hold single moisture value
     ledQueue = xQueueCreate(QLEN, sizeof(int));    // holds single command number
@@ -78,7 +77,7 @@ int main(void)
     Button_Init();
     PRINTF("Button initialized\r\n");
 
-    // Initializing tasks
+    // Start producer/consumer tasks for sensing, comms, and LED state control.
     xTaskCreate(soilMoisturePollingTask, "soil_poll", configMINIMAL_STACK_SIZE + 100, NULL, 2, NULL);
     xTaskCreate(alertTask, "alert", configMINIMAL_STACK_SIZE + 100, NULL, 2, NULL);
     xTaskCreate(uartTxTask, "uart_tx", configMINIMAL_STACK_SIZE + 100, NULL, 3, NULL);

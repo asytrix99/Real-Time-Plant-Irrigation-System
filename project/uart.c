@@ -10,19 +10,19 @@
 
 int DRY_TH;
 
-// --- UART Hardware & ISR ---
+// Configure UART2 pins, baud rate, and RX interrupt handling.
 void initUART2(uint32_t baud_rate)
 {
     NVIC_DisableIRQ(UART2_FLEXIO_IRQn);
 
-    // enable clock to UART2 and PORTE
+    // Enable clock to UART2 and PORTE
     SIM->SCGC4 |= SIM_SCGC4_UART2_MASK;
     SIM->SCGC5 |= SIM_SCGC5_PORTE_MASK;
 
     // Ensure Tx and Rx are disabled before configuration
     UART2->C2 &= ~((UART_C2_TE_MASK) | (UART_C2_RE_MASK));
 
-    // connect UART pins for PTE22, PTE23
+    // Connect UART pins for PTE22, PTE23
     PORTE->PCR[UART_TX_PTE22] &= ~PORT_PCR_MUX_MASK;
     PORTE->PCR[UART_TX_PTE22] |= PORT_PCR_MUX(4);
 
@@ -62,7 +62,7 @@ void initUART2(uint32_t baud_rate)
     NVIC_EnableIRQ(UART2_FLEXIO_IRQn);
 }
 
-// UART handler for ESP-MCXC communication
+// UART ISR: handles interrupt-driven TX and line-buffered RX packet assembly.
 void UART2_FLEXIO_IRQHandler(void)
 {
     // Send and receive pointers
@@ -71,14 +71,13 @@ void UART2_FLEXIO_IRQHandler(void)
     static char recv_buffer[MAX_MSG_LEN];
 
     NVIC_ClearPendingIRQ(UART2_FLEXIO_IRQn);
-    // checking if send_buffer empty with S1 & Empty Mask
-    // start filling up UART->D with data
+    // Checking if send_buffer empty with S1 & Empty Mask
+    // Start filling up UART->D with data
     //
     if ((UART2->S1 & UART_S1_TDRE_MASK) && (UART2->C2 & UART_C2_TIE_MASK))
     {
-        //    	PRINTF("Ready to send data over on UART\r\n");
-        // once reached end of send_buffer,
-        // stop transmitting, reset send_ptr
+        // Once reached end of send_buffer,
+        // Stop transmitting, reset send_ptr
         if (send_buffer[send_ptr] == '\0')
         {
             send_ptr = 0;
@@ -91,22 +90,22 @@ void UART2_FLEXIO_IRQHandler(void)
         }
         else
         {
-            // fill up UART2->D register with data, increment send_ptr
+            // Fill up UART2->D register with data, increment send_ptr
             UART2->D = send_buffer[send_ptr++];
         }
     }
 
-    // checking if send_buffer full with S1 and Full Mask
-    // start emptying UART2->D into recv_buffer
+    // Checking if send_buffer full with S1 and Full Mask
+    // Start emptying UART2->D into recv_buffer
     if (UART2->S1 & UART_S1_RDRF_MASK)
     {
-        //    	PRINTF("Ready to receive data over on UART\r\n");
         TMessage msg;
         rx_data = UART2->D;
-        if (recv_ptr < MAX_MSG_LEN - 1) {
+        if (recv_ptr < MAX_MSG_LEN - 1)
+        {
             recv_buffer[recv_ptr++] = rx_data;
         }
-        // one completed copying data into recv_buffer
+        // One completed copying data into recv_buffer
         if (rx_data == '\n')
         {
             PRINTF("Reached end of string of recv_buffer\r\n");
@@ -119,12 +118,13 @@ void UART2_FLEXIO_IRQHandler(void)
             xQueueSendFromISR(queue, &msg, &hpw);
             portYIELD_FROM_ISR(hpw);
 
-            // reset recv_ptr
+            // Reset recv_ptr
             recv_ptr = 0;
         }
     }
 }
 
+// Publish moisture readings to ESP32 and signal alert task on critical dryness.
 void uartTxTask(void *pvParams)
 {
     int moisture;
@@ -139,25 +139,26 @@ void uartTxTask(void *pvParams)
         {
             PRINTF("sensorQueue received by uartTxTask\r\n");
 
-            // enter CS: mutex to lock shared variable - send_buffer
+            // Enter CS: mutex to lock shared variable - send_buffer
             xSemaphoreTake(uartMutex, portMAX_DELAY);
             PRINTF("uartMutex taken by uartTxTask\r\n");
-            // allowing truncation
+            // Allowing truncation
             snprintf(send_buffer, MAX_MSG_LEN, "<M,%d>\n", moisture);
 
-            UART2->C2 |= UART_C2_TE_MASK | UART_C2_TIE_MASK; // kicks off TX of moisture value
-            //wait for sending package
-            while(UART2->C2 & UART_C2_TIE_MASK){
-            	vTaskDelay(pdMS_TO_TICKS(2)); // give up CPU
+            UART2->C2 |= UART_C2_TE_MASK | UART_C2_TIE_MASK; // Kicks off TX of moisture value
+            // Wait for sending package
+            while (UART2->C2 & UART_C2_TIE_MASK)
+            {
+                vTaskDelay(pdMS_TO_TICKS(2)); // Give up CPU
             }
             xSemaphoreGive(uartMutex);
-            // end of CS
+            // End of CS
             PRINTF("uartMutex released by uartTxTask\r\n");
 
-            // wake alertTask if critically dry
+            // Wake alertTask if critically dry
             if (moisture > DRY_TH)
             {
-                // signals alertTask
+                // Signals alertTask
                 PRINTF("moisture is > DRY_TH!\r\n");
                 xSemaphoreGive(alertSemaphore);
             }
@@ -165,6 +166,7 @@ void uartTxTask(void *pvParams)
     }
 }
 
+// Parse ESP32 packets and forward LED/alert actions to the RTOS queues.
 void uartRxTask(void *pvParams)
 {
     PRINTF("Priority 3 uartRxTask starts\r\n");
@@ -173,12 +175,14 @@ void uartRxTask(void *pvParams)
 
     while (1)
     {
+        // Block until a complete UART packet is posted by the ISR
         xQueueReceive(queue, &msg, portMAX_DELAY);
         PRINTF("Queue from ESP received\r\n");
         int cmd;
         int waterLevel, lightLevel;
         char cond;
 
+        // Parse weather condition update and adjust dryness threshold dynamically
         if (sscanf(msg.message, "<W,%c>", &cond))
         {
             if (cond == 'R')
@@ -189,28 +193,31 @@ void uartRxTask(void *pvParams)
             }
         }
 
+        // Parse water/light telemetry and map it to LED and alert actions
         if (sscanf(msg.message, "<W,%*c><%d, %d>", &waterLevel, &lightLevel) == 2)
         {
             if (waterLevel < WL_TH)
             {
                 PRINTF("Low water level detected!\r\n");
                 cmd = LED_RED;
+                // Serialize access to shared TX buffer before sending LOW alert
                 xSemaphoreTake(uartMutex, portMAX_DELAY);
                 snprintf(send_buffer, MAX_MSG_LEN, "<A,LOW>\n");
                 UART2->C2 |= UART_C2_TE_MASK | UART_C2_TIE_MASK;
-                while(UART2->C2 & UART_C2_TIE_MASK){
-                	vTaskDelay(pdMS_TO_TICKS(2));
+                while (UART2->C2 & UART_C2_TIE_MASK)
+                {
+                    vTaskDelay(pdMS_TO_TICKS(2));
                 }
                 xSemaphoreGive(uartMutex);
             }
-            //        	} else if (waterLevel < WL_HIGH_TH) {
-            //        		cmd = LED_YELLOW;
-            //        		PRINTF("Mid water level detected!\r\n");
+
             else
             {
                 cmd = LED_GREEN;
                 PRINTF("High water level detected!\r\n");
             }
+
+            // Push base water-status color command
             xQueueSend(ledQueue, &cmd, 0);
 
             if (lightLevel > LDR_LOW_TH)
@@ -218,11 +225,14 @@ void uartRxTask(void *pvParams)
                 cmd = LED_BLINK;
                 PRINTF("Low light level detected!\r\n");
             }
+
             else
+
             {
                 cmd = LED_NOBLINK;
                 PRINTF("Normal light level...\r\n");
             }
+            // Push blink/no-blink overlay command
             xQueueSend(ledQueue, &cmd, 0);
         }
     }

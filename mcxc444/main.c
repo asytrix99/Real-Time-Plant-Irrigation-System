@@ -12,7 +12,7 @@
 #include "semphr.h"
 
 /* Sample main() */
-// LEDs, ISR, semaphores, tasks
+// Bring up LEDs/interrupts, create demo tasks, then start scheduler.
 int main(void)
 {
 

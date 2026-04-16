@@ -4,6 +4,7 @@
 #define ADC_SE4a 4
 #define ADC_SE4_PIN 21
 
+// Initialize ADC for alternating reads on two analog input channels.
 void ADC_Init()
 {
     NVIC_DisableIRQ(ADC0_IRQn);
@@ -33,16 +34,17 @@ void ADC_Init()
     NVIC_EnableIRQ(ADC0_IRQn);
 }
 
+// ADC ISR: store conversion, toggle channel, and trigger next conversion.
 void ADC0_IRQHandler()
 {
-    static int turn = 0; // persists across interrupts
+    static int turn = 0; // Persists across interrupts
 
     if (ADC0->SC1[0] & ADC_SC1_COCO_MASK)
     {
 
-        result[turn] = ADC0->R[0]; // read result (clears flag)
+        result[turn] = ADC0->R[0]; // Read result (clears flag)
 
-        turn = 1 - turn; // toggle channel
+        turn = 1 - turn; // Toggle channel
 
         if (turn)
             ADC_Start(ADC_SE0);
