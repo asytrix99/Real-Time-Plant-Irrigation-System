@@ -6,11 +6,11 @@
 #include <ESP32Servo.h>
 
 // Wifi connection and password
-const char *ssid = "Xiaomi 13 Pro";
-const char *password = "1234567890";
+const char *ssid = "your_ssid";
+const char *password = "your_password";
 
 // API variables
-String openWeatherMapApiKey = "11d9fd741957988badffa1134a497315";
+String openWeatherMapApiKey = "yourApiKey";
 String city = "Singapore";
 String countryCode = "SG";
 String weatherCondition;
@@ -22,8 +22,8 @@ unsigned long lastLowWaterAlertTime = 0;
 unsigned long lowWaterAlertCooldown = 60000;
 
 // Telegram bot variables
-String botToken = "7698137105:AAEttnPiSC-jwm-TEy5URZkxQg0FrFB6JqI";
-String chatId = "7404385637";
+String botToken = "yourBotToken";
+String chatId = "yourChatId";
 const char *ntp = "pool.ntp.org";
 const long offset = 8 * 3600; // 8h * 3600seconds
 
