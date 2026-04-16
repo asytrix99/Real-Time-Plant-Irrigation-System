@@ -50,6 +50,7 @@ static int angle_open = 90;
 
 void setup()
 {
+  // Initialize debug UART and MCXC444 UART link
   Serial.begin(115200);                                    // Serial monitor
   Serial1.begin(9600, SERIAL_8N1, NEW_RX_PIN, NEW_TX_PIN); // UART
   Serial.print("Connecting to SSID: ");
@@ -61,6 +62,7 @@ void setup()
   pinMode(SENSOR_POWER_PIN, OUTPUT);
   digitalWrite(SENSOR_POWER_PIN, LOW);
 
+  // Block until WiFi is connected before starting cloud operations
   while (WiFi.status() != WL_CONNECTED)
   {
     delay(250);
@@ -69,6 +71,7 @@ void setup()
 
   Serial.println("\nConnected to WiFi!");
 
+  // Sync RTC so watering alerts include local timestamp
   configTime(offset, 0, ntp);
   Serial.println("Time configured via NTP.");
   // sendTelegramMessage("ALERT: Water tank is critically low! Please refill.");
@@ -77,8 +80,10 @@ void setup()
 void loop()
 {
 
+  // Refresh local sensor readings for the next packet
   readSensors();
 
+  // Periodically fetch weather and publish combined status to MCXC444
   if ((millis() - lastTime) > timerDelay)
   {
     if (WiFi.status() == WL_CONNECTED)
@@ -93,7 +98,7 @@ void loop()
 
       weatherCondition = (const char *)myObject["weather"][0]["main"]; // Extract the "main" weather condition
 
-      // Packetize data
+      // Packetize weather, water, and light into a UART-safe message
       String packetToSend = createMessageString();
 
       printTransmittedMessage(packetToSend);
@@ -107,6 +112,7 @@ void loop()
 
   if (Serial1.available())
   {
+    // Consume one newline-terminated control packet from MCXC444
     String incomingData = Serial1.readStringUntil('\n');
     Serial.print("Received from MCXC444: ");
     Serial.println(incomingData);
@@ -114,12 +120,15 @@ void loop()
     processMessage(incomingData);
   }
 
-  if (isValveOpen && (millis() - servoOpenTime >= 500)) {
+  // Auto-close valve after brief watering pulse
+  if (isValveOpen && (millis() - servoOpenTime >= 500))
+  {
     closeValve();
     isValveOpen = false;
   }
 }
 
+// Build and issue OpenWeatherMap request, then return raw JSON payload
 String fetchAPIData()
 {
   String serverPath = "http://api.openweathermap.org/data/2.5/weather?q=" + city + "," + countryCode + "&APPID=" + openWeatherMapApiKey;
@@ -127,6 +136,7 @@ String fetchAPIData()
   return jsonBuffer;
 }
 
+// Encode weather condition + sensor levels into the agreed UART protocol
 String createMessageString()
 {
   String packetToSend = "";
@@ -146,6 +156,7 @@ String createMessageString()
   return packetToSend;
 }
 
+// Send one telemetry packet and mirror it on serial debug output
 void printTransmittedMessage(String packetToSend)
 {
   Serial1.println(packetToSend);
@@ -161,18 +172,20 @@ unsigned long waterCooldown = 30000; // 10s cooldown for open valve
 
 void processMessage(String incomingData)
 {
+  // Low-water tank alert path with Telegram rate limiting
   if (incomingData.indexOf("<A,LOW>") >= 0)
   {
-    if (millis() - lastLowWaterAlertTime >= lowWaterAlertCooldown) 
+    if (millis() - lastLowWaterAlertTime >= lowWaterAlertCooldown)
     {
       lastLowWaterAlertTime = millis();
       sendTelegramMessage("ALERT: Water tank is critically low! Please refill.");
     }
-    else 
+    else
     {
       Serial.println("Low water alert suppressed by cooldown.");
     }
   }
+  // Dry-soil alert path: open valve briefly and send timestamped notification
   else if (incomingData.indexOf("<A,D>") >= 0)
   {
     if (millis() - lastWaterTime >= waterCooldown)
@@ -181,7 +194,7 @@ void processMessage(String incomingData)
       openValve();
       isValveOpen = true;
       servoOpenTime = millis();
-      
+
       struct tm timeinfo;
       if (!getLocalTime(&timeinfo))
       {
@@ -201,6 +214,7 @@ void processMessage(String incomingData)
       Serial.println("Watering cooldown active...");
     }
   }
+  // Manual override path from hardware button event on MCXC444
   else if (incomingData.indexOf("<V,1>") >= 0)
   {
     Serial.println("Manual Override Received! Watering...");
@@ -211,6 +225,7 @@ void processMessage(String incomingData)
   }
 }
 
+// Execute HTTP GET and return server response body (or empty JSON on error)
 String httpGETRequest(const char *serverName)
 {
   WiFiClient client;
@@ -233,6 +248,7 @@ String httpGETRequest(const char *serverName)
   return payload;
 }
 
+// Push Telegram message via HTTPS Bot API
 void sendTelegramMessage(String message)
 {
   if (WiFi.status() == WL_CONNECTED)
@@ -263,11 +279,11 @@ void sendTelegramMessage(String message)
 
 void readSensors()
 {
-  // wait to stabilise for 2s before reading
+  // Power sensors shortly before sampling to reduce idle consumption
   digitalWrite(SENSOR_POWER_PIN, HIGH);
   delay(200);
 
-  // Take 20 samples and average
+  // Take multiple samples to smooth sensor noise
   int waterSum = 0;
   int lightSum = 0;
   int numSamples = 20;
@@ -279,26 +295,23 @@ void readSensors()
     delay(50);
   }
 
+  // Convert 13-bit ADC readings into 8-bit payload values
   rawWater = waterSum / numSamples;
   rawLight = lightSum / numSamples;
 
-  // waterLevel = (char)(((float)rawWater / 8191.0) * 255.0);
   lightLevel = (char)(((float)rawLight / 8191.0) * 255.0);
   waterLevel = (char)(((float)rawWater / 8191.0) * 255.0);
-
-  // Serial.print("Water level: ");
-  // Serial.println(waterLevel);
-  // Serial.print("Light level: ");
-  // Serial.println(lightLevel);
 
   digitalWrite(SENSOR_POWER_PIN, LOW);
 }
 
+// Rotate valve to the configured open angle
 void openValve()
 {
   valve.write(angle_open);
 }
 
+// Rotate valve back to the configured closed angle
 void closeValve()
 {
   valve.write(angle_closed);
